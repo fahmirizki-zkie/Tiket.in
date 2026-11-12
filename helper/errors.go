@@ -72,6 +72,14 @@ func ServiceUnavailable(message string) *AppError {
 	}
 }
 
+func UnsupportedMediaType(message string) *AppError {
+	return &AppError{
+		Status:  fiber.StatusUnsupportedMediaType,
+		Code:    CodeUnsupportedMedia,
+		Message: message,
+	}
+}
+
 func Internal(cause error) *AppError {
 	return &AppError{
 		Status:  fiber.StatusInternalServerError,
@@ -80,3 +88,4 @@ func Internal(cause error) *AppError {
 		cause:   cause,
 	}
 }
+

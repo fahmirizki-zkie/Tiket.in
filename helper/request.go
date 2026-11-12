@@ -50,3 +50,4 @@ func ParseListQuery(c *fiber.Ctx) model.ListQuery {
 
 	return q
 }
+

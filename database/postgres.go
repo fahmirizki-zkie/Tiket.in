@@ -31,3 +31,4 @@ func NewPool(ctx context.Context) (*pgxpool.Pool, error) {
 	}
 	return NewPostgresPool(ctx, connString)
 }
+

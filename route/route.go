@@ -49,3 +49,4 @@ func healthCheck(pool *pgxpool.Pool, mongoClient *mongo.Client) fiber.Handler {
 		})
 	}
 }
+

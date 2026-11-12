@@ -58,3 +58,4 @@ func FailValidation(c *fiber.Ctx, fields map[string]string) error {
 func NoContent(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
+

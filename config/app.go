@@ -99,3 +99,4 @@ func newErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 		})
 	}
 }
+
