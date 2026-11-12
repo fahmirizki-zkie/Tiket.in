@@ -1,0 +1,30 @@
+# Environment configuration
+.env
+.env.*
+!.env.example
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test artifacts and coverage
+*.out
+*.test
+coverage/
+
+# Application log files
+logs/
+*.log
+
+# OS & Editor generated files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
