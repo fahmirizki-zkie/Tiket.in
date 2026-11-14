@@ -2,27 +2,49 @@ package route
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
+	"tiket-in-backend/app/repository"
+	"tiket-in-backend/app/service"
 	"tiket-in-backend/helper"
+	mw "tiket-in-backend/middleware"
 )
 
-// Dependencies berisi dependensi layanan yang dibutuhkan route
 type Dependencies struct {
 	Mongo         *mongo.Client
 	EnableSwagger bool
 }
 
-// Register mendaftarkan seluruh endpoint route aplikasi
 func Register(app *fiber.App, pool *pgxpool.Pool, mongoClient *mongo.Client, deps Dependencies) {
+	logger := slog.Default()
+	jwtMgr := helper.NewJWTManager()
+
+	userRepo := repository.NewUserRepository(pool)
+	catRepo := repository.NewCategoryRepository(pool)
+
+	authSvc := service.NewAuthService(userRepo, jwtMgr, logger)
+	catSvc := service.NewCategoryService(catRepo, logger)
+
 	api := app.Group("/api/v1")
 
-	// Health Check publik yang memeriksa kesiapan server, PostgreSQL, dan MongoDB
 	api.Get("/health", healthCheck(pool, mongoClient))
+
+	auth := api.Group("/auth", mw.RequireJSON)
+	auth.Post("/register", authSvc.Register)
+	auth.Post("/login", authSvc.Login)
+
+	api.Get("/auth/me", mw.AuthRequired(jwtMgr), authSvc.GetMe)
+
+	categories := api.Group("/categories")
+	categories.Get("/", catSvc.List)
+	categories.Post("/", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("admin"), catSvc.Create)
+	categories.Put("/:id", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("admin"), catSvc.Update)
+	categories.Delete("/:id", mw.AuthRequired(jwtMgr), mw.RequireRole("admin"), catSvc.Delete)
 }
 
 func healthCheck(pool *pgxpool.Pool, mongoClient *mongo.Client) fiber.Handler {
@@ -49,4 +71,3 @@ func healthCheck(pool *pgxpool.Pool, mongoClient *mongo.Client) fiber.Handler {
 		})
 	}
 }
-
