@@ -2,12 +2,11 @@ package helper
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-
-	"tiket-in-backend/config"
 )
 
 type JWTManager struct {
@@ -23,10 +22,24 @@ type JWTClaims struct {
 }
 
 func NewJWTManager() *JWTManager {
-	ttlMinutes := config.GetEnvInt("JWT_ACCESS_TTL_MINUTES", 60)
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "default-secret-change-me"
+	}
+	issuer := os.Getenv("JWT_ISSUER")
+	if issuer == "" {
+		issuer = "tiket-in-backend"
+	}
+	ttlMinutes := 60
+	if rawTTL := os.Getenv("JWT_ACCESS_TTL_MINUTES"); rawTTL != "" {
+		if val, err := strconv.Atoi(rawTTL); err == nil && val > 0 {
+			ttlMinutes = val
+		}
+	}
+
 	return &JWTManager{
-		secret: []byte(config.GetEnv("JWT_SECRET", "default-secret-change-me")),
-		issuer: config.GetEnv("JWT_ISSUER", "tiket-in-backend"),
+		secret: []byte(secret),
+		issuer: issuer,
 		ttl:    time.Duration(ttlMinutes) * time.Minute,
 	}
 }

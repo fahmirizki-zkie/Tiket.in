@@ -26,9 +26,12 @@ func Register(app *fiber.App, pool *pgxpool.Pool, mongoClient *mongo.Client, dep
 
 	userRepo := repository.NewUserRepository(pool)
 	catRepo := repository.NewCategoryRepository(pool)
+	eventRepo := repository.NewEventRepository(pool)
+	ticketTypeRepo := repository.NewTicketTypeRepository(pool)
 
 	authSvc := service.NewAuthService(userRepo, jwtMgr, logger)
 	catSvc := service.NewCategoryService(catRepo, logger)
+	eventSvc := service.NewEventService(eventRepo, ticketTypeRepo, catRepo, logger)
 
 	api := app.Group("/api/v1")
 
@@ -45,6 +48,14 @@ func Register(app *fiber.App, pool *pgxpool.Pool, mongoClient *mongo.Client, dep
 	categories.Post("/", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("admin"), catSvc.Create)
 	categories.Put("/:id", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("admin"), catSvc.Update)
 	categories.Delete("/:id", mw.AuthRequired(jwtMgr), mw.RequireRole("admin"), catSvc.Delete)
+
+	events := api.Group("/events")
+	events.Get("/", eventSvc.List)
+	events.Get("/:id", eventSvc.Get)
+	events.Post("/", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), eventSvc.Create)
+	events.Put("/:id", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), eventSvc.Update)
+	events.Post("/:id/tickets", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), eventSvc.CreateTicket)
+	events.Get("/:id/tickets", eventSvc.ListTickets)
 }
 
 func healthCheck(pool *pgxpool.Pool, mongoClient *mongo.Client) fiber.Handler {
