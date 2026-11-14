@@ -31,6 +31,10 @@ func msgForTag(fe validator.FieldError) string {
 		return "maksimal " + fe.Param() + " karakter"
 	case "oneof":
 		return "harus salah satu dari: " + fe.Param()
+	case "gt":
+		return "harus lebih besar dari " + fe.Param()
+	case "gte":
+		return "minimal bernilai " + fe.Param()
 	default:
 		return "tidak valid"
 	}
