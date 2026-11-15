@@ -43,24 +43,24 @@ tiket-in-backend/
 
 ## Daftar Endpoint RESTful
 
-| No | Method | Endpoint | Akses | Penanggung Jawab | Deskripsi |
-| :---: | :--- | :--- | :--- | :--- | :--- |
-| 1 | POST | `/api/v1/auth/register` | Publik | Fatin | Pendaftaran akun baru |
-| 2 | POST | `/api/v1/auth/login` | Publik | Fatin | Login & perolehan token JWT |
-| 3 | GET | `/api/v1/auth/me` | User | Fatin | Profil pengguna yang sedang login |
-| 4 | GET | `/api/v1/categories` | Publik | Fatin | Daftar seluruh kategori event |
-| 5 | POST | `/api/v1/categories` | Admin | Fatin | Tambah kategori event baru |
-| 6 | PUT | `/api/v1/categories/:id` | Admin | Fatin | Ubah data kategori |
-| 7 | DELETE | `/api/v1/categories/:id` | Admin | Fatin | Hapus kategori |
-| 8 | GET | `/api/v1/events` | Publik | Fahmi | Katalog event dengan filter & pagination |
-| 9 | GET | `/api/v1/events/:id` | Publik | Fahmi | Detail lengkap event & kuota tiket |
-| 10 | POST | `/api/v1/events` | Panitia / Admin | Fahmi | Buat event baru |
-| 11 | PUT | `/api/v1/events/:id` | Panitia (Owner) | Fahmi | Perbarui data event |
-| 12 | POST | `/api/v1/events/:id/tickets` | Panitia (Owner) | Fahmi | Tambah jenis tiket (Early Bird, VIP) |
-| 13 | GET | `/api/v1/events/:id/tickets` | Publik | Fahmi | Daftar tiket & sisa kuota kursi |
-| 14 | POST | `/api/v1/registrations` | Peserta | Naura | Booking tiket aman dari race condition |
-| 15 | GET | `/api/v1/registrations/me` | Peserta | Naura | Riwayat tiket milik peserta yang login |
-| 16 | POST | `/api/v1/attendances/check-in` | Panitia / Admin | Naura | Verifikasi kehadiran & check-in peserta |
+| No | Method | Endpoint | Hak Akses | Deskripsi |
+| :---: | :--- | :--- | :--- | :--- |
+| 1 | POST | `/api/v1/auth/register` | Publik | Pendaftaran akun baru |
+| 2 | POST | `/api/v1/auth/login` | Publik | Login & perolehan token JWT |
+| 3 | GET | `/api/v1/auth/me` | Peserta / Panitia / Admin | Profil pengguna yang sedang login |
+| 4 | GET | `/api/v1/categories` | Publik | Daftar seluruh kategori event |
+| 5 | POST | `/api/v1/categories` | Admin | Tambah kategori event baru |
+| 6 | PUT | `/api/v1/categories/:id` | Admin | Ubah data kategori |
+| 7 | DELETE | `/api/v1/categories/:id` | Admin | Hapus kategori |
+| 8 | GET | `/api/v1/events` | Publik | Katalog event dengan filter & pagination |
+| 9 | GET | `/api/v1/events/:id` | Publik | Detail lengkap event & kuota tiket |
+| 10 | POST | `/api/v1/events` | Panitia / Admin | Buat event baru |
+| 11 | PUT | `/api/v1/events/:id` | Panitia (Penyelenggara) / Admin | Perbarui data event |
+| 12 | POST | `/api/v1/events/:id/tickets` | Panitia (Penyelenggara) / Admin | Tambah jenis tiket (Early Bird, VIP) |
+| 13 | GET | `/api/v1/events/:id/tickets` | Publik | Daftar tiket & sisa kuota kursi |
+| 14 | POST | `/api/v1/registrations` | Peserta | Booking tiket (pessimistic row locking) |
+| 15 | GET | `/api/v1/registrations/me` | Peserta | Riwayat tiket milik peserta yang login |
+| 16 | POST | `/api/v1/attendances/check-in` | Panitia / Admin | Verifikasi kehadiran & check-in peserta |
 
 ---
 
