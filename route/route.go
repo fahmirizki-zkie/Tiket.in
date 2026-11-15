@@ -7,7 +7,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"tiket-in-backend/app/repository"
 	"tiket-in-backend/app/service"
@@ -16,11 +15,10 @@ import (
 )
 
 type Dependencies struct {
-	Mongo         *mongo.Client
 	EnableSwagger bool
 }
 
-func Register(app *fiber.App, pool *pgxpool.Pool, mongoClient *mongo.Client, deps Dependencies) {
+func Register(app *fiber.App, pool *pgxpool.Pool, deps Dependencies) {
 	logger := slog.Default()
 	jwtMgr := helper.NewJWTManager()
 
@@ -40,7 +38,7 @@ func Register(app *fiber.App, pool *pgxpool.Pool, mongoClient *mongo.Client, dep
 
 	api := app.Group("/api/v1")
 
-	api.Get("/health", healthCheck(pool, mongoClient))
+	api.Get("/health", healthCheck(pool))
 
 	auth := api.Group("/auth", mw.RequireJSON)
 	auth.Post("/register", authSvc.Register)
@@ -70,7 +68,7 @@ func Register(app *fiber.App, pool *pgxpool.Pool, mongoClient *mongo.Client, dep
 	attendances.Post("/check-in", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), attendanceSvc.CheckIn)
 }
 
-func healthCheck(pool *pgxpool.Pool, mongoClient *mongo.Client) fiber.Handler {
+func healthCheck(pool *pgxpool.Pool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
 		defer cancel()
@@ -81,16 +79,9 @@ func healthCheck(pool *pgxpool.Pool, mongoClient *mongo.Client) fiber.Handler {
 			}
 		}
 
-		if mongoClient != nil {
-			if err := mongoClient.Ping(ctx, nil); err != nil {
-				return helper.ServiceUnavailable("MongoDB tidak dapat dihubungi")
-			}
-		}
-
-		return helper.Success(c, fiber.StatusOK, "server, PostgreSQL, dan MongoDB berjalan", fiber.Map{
+		return helper.Success(c, fiber.StatusOK, "server dan PostgreSQL berjalan dengan baik", fiber.Map{
 			"status":   "healthy",
 			"postgres": "connected",
-			"mongodb":  "connected",
 		})
 	}
 }

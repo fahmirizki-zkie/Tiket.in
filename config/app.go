@@ -6,7 +6,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"tiket-in-backend/app/model"
 	"tiket-in-backend/helper"
@@ -18,7 +17,6 @@ import (
 func NewApp(
 	logger *slog.Logger,
 	pool *pgxpool.Pool,
-	mongoClient *mongo.Client,
 	deps route.Dependencies,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
@@ -28,7 +26,7 @@ func NewApp(
 	})
 
 	middleware.Register(app, logger, GetEnv("ALLOWED_ORIGINS", "*"))
-	route.Register(app, pool, mongoClient, deps)
+	route.Register(app, pool, deps)
 
 	app.Use(func(c *fiber.Ctx) error {
 		return helper.NotFound("endpoint tidak ditemukan")

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"tiket-in-backend/config"
 	"tiket-in-backend/database"
@@ -37,27 +36,12 @@ func main() {
 		logger.Info("koneksi PostgreSQL pool berhasil")
 	}
 
-	// 4. Inisialisasi Koneksi Database MongoDB
-	var mongoClient *mongo.Client
-	mongoClient, err = database.NewMongoClient(ctx)
-	if err != nil {
-		logger.Warn("peringatan: koneksi MongoDB belum tersambung", slog.String("error", err.Error()))
-	} else {
-		defer func() {
-			disconnectCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = mongoClient.Disconnect(disconnectCtx)
-		}()
-		logger.Info("koneksi MongoDB client berhasil")
-	}
-
-	// 5. Inisialisasi Fiber App dengan Route Dependencies
-	app := config.NewApp(logger, pool, mongoClient, route.Dependencies{
-		Mongo:         mongoClient,
+	// 4. Inisialisasi Fiber App dengan Route Dependencies
+	app := config.NewApp(logger, pool, route.Dependencies{
 		EnableSwagger: config.GetEnv("SWAGGER_ENABLED", "false") == "true",
 	})
 
-	// 6. Jalankan Server HTTP di goroutine terpisah
+	// 5. Jalankan Server HTTP di goroutine terpisah
 	port := config.GetEnv("APP_PORT", "3000")
 	go func() {
 		if err := app.Listen(":" + port); err != nil {
@@ -66,17 +50,17 @@ func main() {
 	}()
 	logger.Info("server HTTP Tiket.in berjalan", slog.String("port", port))
 
-	// 7. Menunggu sinyal penonaktifan (Graceful Shutdown)
+	// 6. Menunggu sinyal penonaktifan (Graceful Shutdown)
 	<-ctx.Done()
-	logger.Info("sinyal penonaktifan diterima, memulai graceful shutdown...")
+	logger.Info("sinyal shutdown diterima, menghentikan server...")
 
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelShutdown()
+	// 7. Beri waktu toleransi pembersihan resource
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	if err := app.ShutdownWithContext(shutdownCtx); err != nil {
-		logger.Error("shutdown server HTTP tidak rapi", slog.String("error", err.Error()))
+		logger.Error("gagal mematikan server dengan aman", slog.String("error", err.Error()))
+	} else {
+		logger.Info("server berhasil dimatikan dengan aman")
 	}
-
-	logger.Info("aplikasi Tiket.in berhasil berhenti dengan rapi")
 }
-
