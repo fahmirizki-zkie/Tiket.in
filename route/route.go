@@ -28,10 +28,15 @@ func Register(app *fiber.App, pool *pgxpool.Pool, mongoClient *mongo.Client, dep
 	catRepo := repository.NewCategoryRepository(pool)
 	eventRepo := repository.NewEventRepository(pool)
 	ticketTypeRepo := repository.NewTicketTypeRepository(pool)
+	registrationRepo := repository.NewRegistrationRepository(pool)
+	attendanceRepo := repository.NewAttendanceRepository(pool)
+	txManager := repository.NewTxManager(pool)
 
 	authSvc := service.NewAuthService(userRepo, jwtMgr, logger)
 	catSvc := service.NewCategoryService(catRepo, logger)
 	eventSvc := service.NewEventService(eventRepo, ticketTypeRepo, catRepo, logger)
+	registrationSvc := service.NewRegistrationService(registrationRepo, ticketTypeRepo, eventRepo, txManager, logger)
+	attendanceSvc := service.NewAttendanceService(attendanceRepo, registrationRepo, eventRepo, txManager, logger)
 
 	api := app.Group("/api/v1")
 
@@ -56,6 +61,13 @@ func Register(app *fiber.App, pool *pgxpool.Pool, mongoClient *mongo.Client, dep
 	events.Put("/:id", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), eventSvc.Update)
 	events.Post("/:id/tickets", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), eventSvc.CreateTicket)
 	events.Get("/:id/tickets", eventSvc.ListTickets)
+
+	registrations := api.Group("/registrations")
+	registrations.Post("/", mw.RequireJSON, mw.AuthRequired(jwtMgr), registrationSvc.Create)
+	registrations.Get("/me", mw.AuthRequired(jwtMgr), registrationSvc.GetMine)
+
+	attendances := api.Group("/attendances")
+	attendances.Post("/check-in", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), attendanceSvc.CheckIn)
 }
 
 func healthCheck(pool *pgxpool.Pool, mongoClient *mongo.Client) fiber.Handler {
