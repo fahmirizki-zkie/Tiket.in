@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
 	"tiket-in-backend/app/repository"
 	"tiket-in-backend/app/service"
@@ -16,6 +17,7 @@ import (
 
 type Dependencies struct {
 	EnableSwagger bool
+	RedisClient   *redis.Client
 }
 
 func Register(app *fiber.App, pool *pgxpool.Pool, deps Dependencies) {
@@ -28,17 +30,19 @@ func Register(app *fiber.App, pool *pgxpool.Pool, deps Dependencies) {
 	ticketTypeRepo := repository.NewTicketTypeRepository(pool)
 	registrationRepo := repository.NewRegistrationRepository(pool)
 	attendanceRepo := repository.NewAttendanceRepository(pool)
+	outboxRepo := repository.NewOutboxRepository(pool)
 	txManager := repository.NewTxManager(pool)
 
 	authSvc := service.NewAuthService(userRepo, jwtMgr, logger)
 	catSvc := service.NewCategoryService(catRepo, logger)
 	eventSvc := service.NewEventService(eventRepo, ticketTypeRepo, catRepo, logger)
 	registrationSvc := service.NewRegistrationService(registrationRepo, ticketTypeRepo, eventRepo, txManager, logger)
+	registrationSvc.SetOutboxRepository(outboxRepo)
 	attendanceSvc := service.NewAttendanceService(attendanceRepo, registrationRepo, eventRepo, txManager, logger)
 
 	api := app.Group("/api/v1")
 
-	api.Get("/health", healthCheck(pool))
+	api.Get("/health", healthCheck(pool, deps.RedisClient))
 
 	auth := api.Group("/auth", mw.RequireJSON)
 	auth.Post("/register", authSvc.Register)
@@ -71,7 +75,7 @@ func Register(app *fiber.App, pool *pgxpool.Pool, deps Dependencies) {
 	attendances.Post("/check-in", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), attendanceSvc.CheckIn)
 }
 
-func healthCheck(pool *pgxpool.Pool) fiber.Handler {
+func healthCheck(pool *pgxpool.Pool, rdb *redis.Client) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
 		defer cancel()
@@ -82,9 +86,17 @@ func healthCheck(pool *pgxpool.Pool) fiber.Handler {
 			}
 		}
 
-		return helper.Success(c, fiber.StatusOK, "server dan PostgreSQL berjalan dengan baik", fiber.Map{
+		redisStatus := "disconnected"
+		if rdb != nil {
+			if err := rdb.Ping(ctx).Err(); err == nil {
+				redisStatus = "connected"
+			}
+		}
+
+		return helper.Success(c, fiber.StatusOK, "server berjalan dengan baik", fiber.Map{
 			"status":   "healthy",
 			"postgres": "connected",
+			"redis":    redisStatus,
 		})
 	}
 }

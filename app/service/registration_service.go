@@ -19,6 +19,7 @@ type RegistrationService struct {
 	ticketTypeRepo   *repository.TicketTypeRepository
 	eventRepo        *repository.EventRepository
 	txManager        *repository.TxManager
+	outboxRepo       *repository.OutboxRepository
 	logger           *slog.Logger
 }
 
@@ -36,6 +37,11 @@ func NewRegistrationService(
 		txManager:        txManager,
 		logger:           logger,
 	}
+}
+
+// SetOutboxRepository menyematkan OutboxRepository untuk Transactional Outbox pattern
+func (s *RegistrationService) SetOutboxRepository(outboxRepo *repository.OutboxRepository) {
+	s.outboxRepo = outboxRepo
 }
 
 // Create mendaftarkan peserta ke event dan menghasilkan kode tiket unik.
@@ -119,6 +125,21 @@ func (s *RegistrationService) Create(c *fiber.Ctx) error {
 		// 6. Tambah counter tiket terjual
 		if err := s.ticketTypeRepo.IncrementSold(ctx, tx, tt.ID, 1); err != nil {
 			return err
+		}
+
+		// 7. Simpan event Transactional Outbox (Modul 11 & 12)
+		if s.outboxRepo != nil {
+			outboxPayload := map[string]any{
+				"registration_id": reg.ID,
+				"user_id":         reg.UserID,
+				"event_id":        reg.EventID,
+				"ticket_code":     reg.TicketCode,
+				"ticket_type_id":  reg.TicketTypeID,
+				"registered_at":   time.Now(),
+			}
+			if err := s.outboxRepo.CreateWithTx(ctx, tx, "ticket.created", outboxPayload); err != nil {
+				return err
+			}
 		}
 
 		reg.EventTitle = event.Title
