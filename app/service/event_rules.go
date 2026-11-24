@@ -82,3 +82,16 @@ func ValidateDeleteTicketType(currentSold int) string {
 	}
 	return ""
 }
+
+// ValidateEventCancellation memvalidasi apakah event memenuhi syarat untuk dibatalkan
+func ValidateEventCancellation(currentStatus string) string {
+	status := strings.ToLower(strings.TrimSpace(currentStatus))
+	switch status {
+	case "cancelled":
+		return "event sudah dalam status dibatalkan"
+	case "finished":
+		return "event yang sudah selesai tidak dapat dibatalkan"
+	default:
+		return ""
+	}
+}
