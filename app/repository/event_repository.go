@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -175,4 +176,23 @@ func (r *EventRepository) Update(ctx context.Context, event *model.Event) error 
 		event.Status,
 		event.ID,
 	).Scan(&event.UpdatedAt)
+}
+
+func (r *EventRepository) Cancel(ctx context.Context, id int64, reason string) error {
+	query := `
+		UPDATE events
+		SET status = 'cancelled',
+		    cancellation_reason = NULLIF($1, ''),
+		    cancelled_at = now(),
+		    updated_at = now()
+		WHERE id = $2`
+
+	cmd, err := r.pool.Exec(ctx, query, strings.TrimSpace(reason), id)
+	if err != nil {
+		return fmt.Errorf("cancel event: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return fmt.Errorf("event not found or no rows updated")
+	}
+	return nil
 }
