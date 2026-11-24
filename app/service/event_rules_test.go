@@ -284,3 +284,46 @@ func TestValidateDeleteTicketType(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateEventCancellation(t *testing.T) {
+	tests := []struct {
+		name          string
+		currentStatus string
+		want          string
+	}{
+		{
+			name:          "valid: cancel published event",
+			currentStatus: "published",
+			want:          "",
+		},
+		{
+			name:          "valid: cancel draft event",
+			currentStatus: "draft",
+			want:          "",
+		},
+		{
+			name:          "valid: case insensitive and whitespace",
+			currentStatus: "  PUBLISHED  ",
+			want:          "",
+		},
+		{
+			name:          "invalid: already cancelled event",
+			currentStatus: "cancelled",
+			want:          "event sudah dalam status dibatalkan",
+		},
+		{
+			name:          "invalid: already finished event",
+			currentStatus: "finished",
+			want:          "event yang sudah selesai tidak dapat dibatalkan",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ValidateEventCancellation(tt.currentStatus)
+			if got != tt.want {
+				t.Errorf("ValidateEventCancellation(%q) = %q, want %q", tt.currentStatus, got, tt.want)
+			}
+		})
+	}
+}

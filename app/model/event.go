@@ -11,11 +11,17 @@ type Event struct {
 	Location      string    `json:"location"`
 	StartAt       time.Time `json:"start_at"`
 	EndAt         time.Time `json:"end_at"`
-	Status        string    `json:"status"` // draft, published, finished, cancelled
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	CategoryName  string    `json:"category_name,omitempty"`
-	OrganizerName string    `json:"organizer_name,omitempty"`
+	Status             string     `json:"status"` // draft, published, finished, cancelled
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	CancellationReason *string    `json:"cancellation_reason,omitempty"`
+	CancelledAt        *time.Time `json:"cancelled_at,omitempty"`
+	CategoryName       string     `json:"category_name,omitempty"`
+	OrganizerName      string     `json:"organizer_name,omitempty"`
+}
+
+type CancelEventRequest struct {
+	Reason string `json:"reason" validate:"omitempty,max=500"`
 }
 
 type CreateEventRequest struct {

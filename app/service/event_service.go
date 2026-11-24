@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -483,4 +484,58 @@ func (s *EventService) DeleteTicket(c *fiber.Ctx) error {
 	}
 
 	return helper.NoContent(c)
+}
+
+// Cancel membatalkan event oleh panitia penyelenggara atau admin
+func (s *EventService) Cancel(c *fiber.Ctx) error {
+	id, ok := helper.ParamID(c)
+	if !ok {
+		return helper.BadRequest("id event tidak valid")
+	}
+
+	userID, _ := c.Locals("userID").(int64)
+	userRole, _ := c.Locals("userRole").(string)
+
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	existing, err := s.eventRepo.FindByID(ctx, int64(id))
+	if err != nil {
+		s.logger.Error("event cancel: gagal query", slog.String("error", err.Error()))
+		return helper.Internal(err)
+	}
+	if existing == nil {
+		return helper.NotFound("event tidak ditemukan")
+	}
+
+	if msg := ValidateEventOwnership(existing.OrganizerID, userID, userRole); msg != "" {
+		return helper.Forbidden(msg)
+	}
+
+	if msg := ValidateEventCancellation(existing.Status); msg != "" {
+		return helper.BadRequest(msg)
+	}
+
+	var req model.CancelEventRequest
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&req); err == nil {
+			if fields := helper.ValidateStruct(req); fields != nil {
+				return helper.Validation(fields)
+			}
+		}
+	}
+
+	if err := s.eventRepo.Cancel(ctx, int64(id), req.Reason); err != nil {
+		s.logger.Error("event cancel: gagal update status", slog.String("error", err.Error()))
+		return helper.Internal(err)
+	}
+
+	existing.Status = "cancelled"
+	now := time.Now()
+	existing.CancelledAt = &now
+	if trimmed := strings.TrimSpace(req.Reason); trimmed != "" {
+		existing.CancellationReason = &trimmed
+	}
+
+	return helper.Success(c, fiber.StatusOK, "event berhasil dibatalkan", existing)
 }
