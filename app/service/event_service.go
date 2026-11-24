@@ -339,3 +339,148 @@ func (s *EventService) ListTickets(c *fiber.Ctx) error {
 
 	return helper.Success(c, fiber.StatusOK, "daftar jenis tiket berhasil diambil", tickets)
 }
+
+// UpdateTicket memperbarui jenis tiket pada event oleh panitia penyelenggara atau admin
+func (s *EventService) UpdateTicket(c *fiber.Ctx) error {
+	eventID, ok := helper.ParamID(c)
+	if !ok {
+		return helper.BadRequest("id event tidak valid")
+	}
+
+	ticketID, ok := helper.ParamNamedID(c, "ticket_id")
+	if !ok {
+		return helper.BadRequest("id tiket tidak valid")
+	}
+
+	userID, _ := c.Locals("userID").(int64)
+	userRole, _ := c.Locals("userRole").(string)
+
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	event, err := s.eventRepo.FindByID(ctx, int64(eventID))
+	if err != nil {
+		s.logger.Error("update ticket: gagal query event", slog.String("error", err.Error()))
+		return helper.Internal(err)
+	}
+	if event == nil {
+		return helper.NotFound("event tidak ditemukan")
+	}
+
+	if msg := ValidateEventOwnership(event.OrganizerID, userID, userRole); msg != "" {
+		return helper.Forbidden(msg)
+	}
+
+	if msg := CanModifyEvent(event.Status); msg != "" {
+		return helper.BadRequest(msg)
+	}
+
+	ticket, err := s.ticketTypeRepo.FindByID(ctx, int64(ticketID))
+	if err != nil {
+		s.logger.Error("update ticket: gagal query ticket", slog.String("error", err.Error()))
+		return helper.Internal(err)
+	}
+	if ticket == nil || ticket.EventID != event.ID {
+		return helper.NotFound("jenis tiket tidak ditemukan pada event ini")
+	}
+
+	var req model.UpdateTicketTypeRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.BadRequest("body JSON tidak valid")
+	}
+
+	if fields := helper.ValidateStruct(req); fields != nil {
+		return helper.Validation(fields)
+	}
+
+	if req.Name != nil {
+		name := strings.TrimSpace(*req.Name)
+		if name != "" && !strings.EqualFold(name, ticket.Name) {
+			existingTicket, err := s.ticketTypeRepo.FindByNameAndEventID(ctx, event.ID, name)
+			if err != nil {
+				s.logger.Error("update ticket: gagal cek nama", slog.String("error", err.Error()))
+				return helper.Internal(err)
+			}
+			if existingTicket != nil {
+				return helper.Conflict("jenis tiket dengan nama tersebut sudah ada pada event ini")
+			}
+			ticket.Name = name
+		}
+	}
+
+	if req.Price != nil {
+		ticket.Price = *req.Price
+	}
+
+	if req.Quota != nil {
+		newQuota := *req.Quota
+		if msg := ValidateUpdateTicketQuota(ticket.Sold, newQuota); msg != "" {
+			return helper.BadRequest(msg)
+		}
+		ticket.Quota = newQuota
+	}
+
+	if err := s.ticketTypeRepo.Update(ctx, ticket); err != nil {
+		s.logger.Error("update ticket: gagal update", slog.String("error", err.Error()))
+		return helper.Internal(err)
+	}
+
+	ticket.AvailableSeats = ticket.Quota - ticket.Sold
+	return helper.Success(c, fiber.StatusOK, "jenis tiket berhasil diperbarui", ticket)
+}
+
+// DeleteTicket menghapus jenis tiket pada event (hanya jika belum ada yang terjual)
+func (s *EventService) DeleteTicket(c *fiber.Ctx) error {
+	eventID, ok := helper.ParamID(c)
+	if !ok {
+		return helper.BadRequest("id event tidak valid")
+	}
+
+	ticketID, ok := helper.ParamNamedID(c, "ticket_id")
+	if !ok {
+		return helper.BadRequest("id tiket tidak valid")
+	}
+
+	userID, _ := c.Locals("userID").(int64)
+	userRole, _ := c.Locals("userRole").(string)
+
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	event, err := s.eventRepo.FindByID(ctx, int64(eventID))
+	if err != nil {
+		s.logger.Error("delete ticket: gagal query event", slog.String("error", err.Error()))
+		return helper.Internal(err)
+	}
+	if event == nil {
+		return helper.NotFound("event tidak ditemukan")
+	}
+
+	if msg := ValidateEventOwnership(event.OrganizerID, userID, userRole); msg != "" {
+		return helper.Forbidden(msg)
+	}
+
+	if msg := CanModifyEvent(event.Status); msg != "" {
+		return helper.BadRequest(msg)
+	}
+
+	ticket, err := s.ticketTypeRepo.FindByID(ctx, int64(ticketID))
+	if err != nil {
+		s.logger.Error("delete ticket: gagal query ticket", slog.String("error", err.Error()))
+		return helper.Internal(err)
+	}
+	if ticket == nil || ticket.EventID != event.ID {
+		return helper.NotFound("jenis tiket tidak ditemukan pada event ini")
+	}
+
+	if msg := ValidateDeleteTicketType(ticket.Sold); msg != "" {
+		return helper.BadRequest(msg)
+	}
+
+	if err := s.ticketTypeRepo.Delete(ctx, ticket.ID); err != nil {
+		s.logger.Error("delete ticket: gagal hapus", slog.String("error", err.Error()))
+		return helper.Internal(err)
+	}
+
+	return helper.NoContent(c)
+}

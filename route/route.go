@@ -59,6 +59,8 @@ func Register(app *fiber.App, pool *pgxpool.Pool, deps Dependencies) {
 	events.Put("/:id", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), eventSvc.Update)
 	events.Post("/:id/tickets", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), eventSvc.CreateTicket)
 	events.Get("/:id/tickets", eventSvc.ListTickets)
+	events.Put("/:id/tickets/:ticket_id", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), eventSvc.UpdateTicket)
+	events.Delete("/:id/tickets/:ticket_id", mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), eventSvc.DeleteTicket)
 
 	registrations := api.Group("/registrations")
 	registrations.Post("/", mw.RequireJSON, mw.AuthRequired(jwtMgr), registrationSvc.Create)

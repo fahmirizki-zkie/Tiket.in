@@ -19,3 +19,9 @@ type CreateTicketTypeRequest struct {
 	Price float64 `json:"price" validate:"gte=0"`
 	Quota int     `json:"quota" validate:"required,gt=0"`
 }
+
+type UpdateTicketTypeRequest struct {
+	Name  *string  `json:"name,omitempty"  validate:"omitempty,min=2,max=100"`
+	Price *float64 `json:"price,omitempty" validate:"omitempty,gte=0"`
+	Quota *int     `json:"quota,omitempty" validate:"omitempty,gt=0"`
+}

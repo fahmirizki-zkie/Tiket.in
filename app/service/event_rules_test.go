@@ -202,3 +202,85 @@ func TestValidateEventOwnership(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateUpdateTicketQuota(t *testing.T) {
+	tests := []struct {
+		name        string
+		currentSold int
+		newQuota    int
+		want        string
+	}{
+		{
+			name:        "valid: new quota greater than sold",
+			currentSold: 10,
+			newQuota:    50,
+			want:        "",
+		},
+		{
+			name:        "valid: new quota equals sold",
+			currentSold: 25,
+			newQuota:    25,
+			want:        "",
+		},
+		{
+			name:        "invalid: new quota less than sold",
+			currentSold: 30,
+			newQuota:    20,
+			want:        "kuota tiket baru tidak boleh lebih kecil dari jumlah tiket yang sudah terjual",
+		},
+		{
+			name:        "invalid: new quota zero",
+			currentSold: 0,
+			newQuota:    0,
+			want:        "kuota tiket minimal 1 tiket",
+		},
+		{
+			name:        "invalid: new quota exceeds max limit",
+			currentSold: 0,
+			newQuota:    100001,
+			want:        "kuota tiket maksimal 100.000 tiket",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ValidateUpdateTicketQuota(tt.currentSold, tt.newQuota)
+			if got != tt.want {
+				t.Errorf("ValidateUpdateTicketQuota(%d, %d) = %q, want %q", tt.currentSold, tt.newQuota, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateDeleteTicketType(t *testing.T) {
+	tests := []struct {
+		name        string
+		currentSold int
+		want        string
+	}{
+		{
+			name:        "valid: ticket with zero sold can be deleted",
+			currentSold: 0,
+			want:        "",
+		},
+		{
+			name:        "invalid: ticket with sold count cannot be deleted",
+			currentSold: 1,
+			want:        "jenis tiket yang sudah terjual tidak dapat dihapus",
+		},
+		{
+			name:        "invalid: ticket with multiple sold cannot be deleted",
+			currentSold: 45,
+			want:        "jenis tiket yang sudah terjual tidak dapat dihapus",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ValidateDeleteTicketType(tt.currentSold)
+			if got != tt.want {
+				t.Errorf("ValidateDeleteTicketType(%d) = %q, want %q", tt.currentSold, got, tt.want)
+			}
+		})
+	}
+}
