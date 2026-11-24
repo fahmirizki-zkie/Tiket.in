@@ -172,3 +172,45 @@ func (r *TicketTypeRepository) IncrementSold(ctx context.Context, tx DBTX, id in
 	}
 	return nil
 }
+
+// DecrementSold mengurangi counter tiket terjual secara atomik dalam transaksi (saat pembatalan)
+func (r *TicketTypeRepository) DecrementSold(ctx context.Context, tx DBTX, id int64, count int) error {
+	query := `
+		UPDATE ticket_types
+		SET sold = GREATEST(0, sold - $1),
+		    updated_at = now()
+		WHERE id = $2`
+
+	cmd, err := tx.Exec(ctx, query, count, id)
+	if err != nil {
+		return fmt.Errorf("DecrementSold: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return errors.New("tiket tidak ditemukan untuk didecrement")
+	}
+	return nil
+}
+
+// Update memperbarui data jenis tiket (nama, harga, kuota)
+func (r *TicketTypeRepository) Update(ctx context.Context, ticket *model.TicketType) error {
+	query := `
+		UPDATE ticket_types
+		SET name = $1, price = $2, quota = $3, updated_at = now()
+		WHERE id = $4
+		RETURNING updated_at`
+
+	return r.pool.QueryRow(ctx, query, ticket.Name, ticket.Price, ticket.Quota, ticket.ID).Scan(&ticket.UpdatedAt)
+}
+
+// Delete menghapus jenis tiket berdasarkan ID
+func (r *TicketTypeRepository) Delete(ctx context.Context, id int64) error {
+	query := `DELETE FROM ticket_types WHERE id = $1`
+	cmd, err := r.pool.Exec(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("Delete ticket_type: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return errors.New("tiket tidak ditemukan")
+	}
+	return nil
+}

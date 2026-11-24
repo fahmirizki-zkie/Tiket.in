@@ -60,3 +60,25 @@ func ValidateEventOwnership(eventOrganizerID, currentUserID int64, currentUserRo
 	}
 	return ""
 }
+
+// ValidateUpdateTicketQuota memastikan kuota baru tidak lebih kecil dari tiket yang sudah terjual
+func ValidateUpdateTicketQuota(currentSold, newQuota int) string {
+	if newQuota < currentSold {
+		return "kuota tiket baru tidak boleh lebih kecil dari jumlah tiket yang sudah terjual"
+	}
+	if newQuota <= 0 {
+		return "kuota tiket minimal 1 tiket"
+	}
+	if newQuota > 100000 {
+		return "kuota tiket maksimal 100.000 tiket"
+	}
+	return ""
+}
+
+// ValidateDeleteTicketType memastikan jenis tiket yang sudah memiliki penjualan tidak dapat dihapus
+func ValidateDeleteTicketType(currentSold int) string {
+	if currentSold > 0 {
+		return "jenis tiket yang sudah terjual tidak dapat dihapus"
+	}
+	return ""
+}

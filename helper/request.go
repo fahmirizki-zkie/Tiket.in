@@ -25,6 +25,15 @@ func ParamID(c *fiber.Ctx) (int, bool) {
 	return id, true
 }
 
+// ParamNamedID membaca parameter bernama (misal: :ticket_id) dari URL path dan memastikan integer positif
+func ParamNamedID(c *fiber.Ctx, name string) (int, bool) {
+	id, err := strconv.Atoi(c.Params(name))
+	if err != nil || id < 1 {
+		return 0, false
+	}
+	return id, true
+}
+
 // ParseListQuery membaca query string dan memberi nilai bawaan aman
 func ParseListQuery(c *fiber.Ctx) model.ListQuery {
 	q := model.ListQuery{
