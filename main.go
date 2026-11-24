@@ -10,9 +10,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"tiket-in-backend/app/repository"
 	"tiket-in-backend/config"
 	"tiket-in-backend/database"
 	"tiket-in-backend/route"
+	"tiket-in-backend/worker"
 )
 
 func main() {
@@ -36,9 +38,23 @@ func main() {
 		logger.Info("koneksi PostgreSQL pool berhasil")
 	}
 
+	// 3b. Inisialisasi Redis Client & Outbox Relay Worker (Modul 11 & 12)
+	rdb, err := database.NewRedisClient(ctx)
+	if err != nil {
+		logger.Warn("peringatan: koneksi Redis belum tersambung (outbox relay standby)", slog.String("error", err.Error()))
+	} else {
+		defer rdb.Close()
+		logger.Info("koneksi Redis client berhasil tersambung")
+	}
+
+	outboxRepo := repository.NewOutboxRepository(pool)
+	relay := worker.NewOutboxRelay(outboxRepo, rdb, logger)
+	go relay.Start(ctx)
+
 	// 4. Inisialisasi Fiber App dengan Route Dependencies
 	app := config.NewApp(logger, pool, route.Dependencies{
 		EnableSwagger: config.GetEnv("SWAGGER_ENABLED", "false") == "true",
+		RedisClient:   rdb,
 	})
 
 	// 5. Jalankan Server HTTP di goroutine terpisah
