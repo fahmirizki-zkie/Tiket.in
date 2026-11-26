@@ -166,3 +166,31 @@ func (r *RegistrationRepository) UpdateStatus(ctx context.Context, tx DBTX, id i
 	}
 	return nil
 }
+
+// FindByIDForUpdate mengunci satu registrasi berdasarkan id (dipakai saat pembatalan).
+func (r *RegistrationRepository) FindByIDForUpdate(ctx context.Context, tx DBTX, id int64) (*model.Registration, error) {
+	query := `
+		SELECT id, user_id, event_id, ticket_type_id, ticket_code, status, registered_at, updated_at
+		FROM registrations
+		WHERE id = $1
+		FOR UPDATE`
+
+	var reg model.Registration
+	err := tx.QueryRow(ctx, query, id).Scan(
+		&reg.ID,
+		&reg.UserID,
+		&reg.EventID,
+		&reg.TicketTypeID,
+		&reg.TicketCode,
+		&reg.Status,
+		&reg.RegisteredAt,
+		&reg.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("FindByIDForUpdate registration: %w", err)
+	}
+	return &reg, nil
+}
