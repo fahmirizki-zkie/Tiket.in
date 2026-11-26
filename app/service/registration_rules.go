@@ -12,6 +12,8 @@ var (
 	ErrEventEnded            = errors.New("event sudah berakhir")
 	ErrAlreadyCheckedIn      = errors.New("tiket sudah digunakan")
 	ErrRegistrationCancelled = errors.New("tiket sudah dibatalkan")
+	ErrNotRegistrationOwner	 = errors.New("tiket ini bukan milik Anda")
+	ErrEventStarted			 = errors.New("event sudah dimulai, tiket tidak dapat dibatalkan")
 )
 
 // ValidateQuota memastikan masih ada sisa kuota pada jenis tiket.
@@ -54,6 +56,33 @@ func ValidateCheckIn(status string) error {
 		return ErrAlreadyCheckedIn
 	case "cancelled":
 		return ErrRegistrationCancelled
+	}
+	return nil
+}
+
+// ValidateRegistrationOwner memastikan hanya pemilik tiket yang boleh membatalkan.
+func ValidateRegistrationOwner(ownerID, userID int64) error {
+	if ownerID != userID {
+		return ErrNotRegistrationOwner
+	}
+	return nil
+}
+
+// ValidateCancel memastikan tiket masih berstatus registered.
+func ValidateCancel(status string) error {
+	switch status {
+	case "checked_in":
+		return ErrAlreadyCheckedIn
+	case "cancelled":
+		return ErrRegistrationCancelled
+	}
+	return nil
+}
+
+// ValidateCancelWindow menolak pembatalan setelah event dimulai.
+func ValidateCancelWindow(startAt, now time.Time) error {
+	if !now.Before(startAt) {
+		return ErrEventStarted
 	}
 	return nil
 }
