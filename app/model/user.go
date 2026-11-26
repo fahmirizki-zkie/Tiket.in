@@ -27,3 +27,8 @@ type AuthResponse struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`
 }
+
+// UpdateRoleRequest dipakai admin untuk mengubah role user (PUT /users/:id/role)
+type UpdateRoleRequest struct {
+	Role string `json:"role" validate:"required,oneof=peserta panitia admin"`
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"tiket-in-backend/app/repository"
+	"tiket-in-backend/app/service"
 	"tiket-in-backend/config"
 	"tiket-in-backend/database"
 	"tiket-in-backend/route"
@@ -45,6 +46,11 @@ func main() {
 	} else {
 		defer rdb.Close()
 		logger.Info("koneksi Redis client berhasil tersambung")
+	}
+
+	// 3c. Seed admin pertama dari .env (hanya jika belum ada admin)
+	if pool != nil {
+		service.SeedAdmin(ctx, repository.NewUserRepository(pool), logger)
 	}
 
 	outboxRepo := repository.NewOutboxRepository(pool)

@@ -34,6 +34,7 @@ func Register(app *fiber.App, pool *pgxpool.Pool, deps Dependencies) {
 	txManager := repository.NewTxManager(pool)
 
 	authSvc := service.NewAuthService(userRepo, jwtMgr, logger)
+	userSvc := service.NewUserService(userRepo, logger)
 	catSvc := service.NewCategoryService(catRepo, logger)
 	eventSvc := service.NewEventService(eventRepo, ticketTypeRepo, catRepo, logger)
 	registrationSvc := service.NewRegistrationService(registrationRepo, ticketTypeRepo, eventRepo, txManager, logger)
@@ -49,6 +50,10 @@ func Register(app *fiber.App, pool *pgxpool.Pool, deps Dependencies) {
 	auth.Post("/login", authSvc.Login)
 
 	api.Get("/auth/me", mw.AuthRequired(jwtMgr), authSvc.GetMe)
+
+	users := api.Group("/users")
+	users.Get("/", mw.AuthRequired(jwtMgr), mw.RequireRole("admin"), userSvc.List)
+	users.Put("/:id/role", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("admin"), userSvc.UpdateRole)
 
 	categories := api.Group("/categories")
 	categories.Get("/", catSvc.List)

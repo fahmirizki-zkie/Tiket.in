@@ -67,3 +67,24 @@ func ValidateRole(role string) string {
 		return "role harus peserta atau panitia"
 	}
 }
+
+// ValidateAssignableRole memeriksa role yang boleh diberikan admin.
+// Berbeda dengan ValidateRole (registrasi publik) yang menolak "admin".
+func ValidateAssignableRole(role string) string {
+	role = strings.TrimSpace(strings.ToLower(role))
+	switch role {
+	case "peserta", "panitia", "admin":
+		return ""
+	default:
+		return "role harus peserta, panitia, atau admin"
+	}
+}
+
+// CanChangeRole: admin tidak boleh mengubah role dirinya sendiri,
+// supaya sistem tidak pernah kehilangan admin terakhir.
+func CanChangeRole(actorID, targetID int64) string {
+	if actorID == targetID {
+		return "admin tidak dapat mengubah role dirinya sendiri"
+	}
+	return ""
+}

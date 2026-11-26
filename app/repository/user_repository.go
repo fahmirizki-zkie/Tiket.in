@@ -56,3 +56,74 @@ func (r *UserRepository) FindByID(ctx context.Context, id int64) (*model.User, e
 	}
 	return &u, nil
 }
+
+// FindAll mengambil daftar user dengan pencarian (nama/email), filter role, dan pagination.
+func (r *UserRepository) FindAll(ctx context.Context, q model.ListQuery, role string) ([]model.User, int, error) {
+	const filter = `
+		WHERE ($1::text = '' OR name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
+		  AND ($2::text = '' OR role = $2::text)`
+
+	var total int
+	if err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users`+filter, q.Search, role).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	orderCol := "id"
+	switch q.Sort {
+	case "name", "email", "role", "created_at":
+		orderCol = q.Sort
+	}
+	orderDir := "ASC"
+	if q.Order == "desc" {
+		orderDir = "DESC"
+	}
+
+	offset := (q.Page - 1) * q.Limit
+
+	dataQuery := `
+		SELECT id, name, email, password_hash, role, created_at
+		FROM users` + filter + `
+		ORDER BY ` + orderCol + ` ` + orderDir + `, id ASC
+		LIMIT $3 OFFSET $4`
+
+	rows, err := r.pool.Query(ctx, dataQuery, q.Search, role, q.Limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	users := []model.User{}
+	for rows.Next() {
+		var u model.User
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.CreatedAt); err != nil {
+			return nil, 0, err
+		}
+		users = append(users, u)
+	}
+
+	return users, total, rows.Err()
+}
+
+// UpdateRole mengubah role user. Mengembalikan pgx.ErrNoRows bila user tidak ada.
+func (r *UserRepository) UpdateRole(ctx context.Context, id int64, role string) (*model.User, error) {
+	query := `
+		UPDATE users SET role = $1, updated_at = now()
+		WHERE id = $2
+		RETURNING id, name, email, password_hash, role, created_at`
+
+	var u model.User
+	err := r.pool.QueryRow(ctx, query, role, id).Scan(
+		&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// CountByRole menghitung jumlah user dengan role tertentu.
+func (r *UserRepository) CountByRole(ctx context.Context, role string) (int, error) {
+	var n int
+	err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE role = $1`, role).Scan(&n)
+	return n, err
+}
