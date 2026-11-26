@@ -50,6 +50,8 @@ func Register(app *fiber.App, pool *pgxpool.Pool, deps Dependencies) {
 	auth.Post("/login", authSvc.Login)
 
 	api.Get("/auth/me", mw.AuthRequired(jwtMgr), authSvc.GetMe)
+	api.Put("/auth/me", mw.RequireJSON, mw.AuthRequired(jwtMgr), authSvc.UpdateProfile)
+	api.Put("/auth/me/password", mw.RequireJSON, mw.AuthRequired(jwtMgr), authSvc.ChangePassword)
 
 	users := api.Group("/users")
 	users.Get("/", mw.AuthRequired(jwtMgr), mw.RequireRole("admin"), userSvc.List)

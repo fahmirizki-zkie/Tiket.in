@@ -127,3 +127,45 @@ func (r *UserRepository) CountByRole(ctx context.Context, role string) (int, err
 	err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE role = $1`, role).Scan(&n)
 	return n, err
 }
+
+// UpdateProfile mengubah nama dan email user.
+func (r *UserRepository) UpdateProfile(ctx context.Context, id int64, name, email string) (*model.User, error) {
+	query := `
+		UPDATE users SET name = $1, email = $2, updated_at = now()
+		WHERE id = $3
+		RETURNING id, name, email, password_hash, role, created_at`
+
+	var u model.User
+	err := r.pool.QueryRow(ctx, query, name, email, id).Scan(
+		&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// UpdatePassword mengganti hash password user.
+func (r *UserRepository) UpdatePassword(ctx context.Context, id int64, passwordHash string) error {
+	ct, err := r.pool.Exec(ctx,
+		`UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2`,
+		passwordHash, id,
+	)
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return pgxNoRows
+	}
+	return nil
+}
+
+// ExistsByEmail memeriksa apakah email sudah dipakai user lain (excludeID dikecualikan).
+func (r *UserRepository) ExistsByEmail(ctx context.Context, email string, excludeID int64) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND id != $2)`,
+		email, excludeID,
+	).Scan(&exists)
+	return exists, err
+}

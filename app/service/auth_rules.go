@@ -88,3 +88,33 @@ func CanChangeRole(actorID, targetID int64) string {
 	}
 	return ""
 }
+
+// ValidateName memvalidasi nama tampilan user (dipakai update profil)
+func ValidateName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "nama wajib diisi"
+	}
+	n := len([]rune(name))
+	if n < 2 {
+		return "nama minimal 2 karakter"
+	}
+	if n > 100 {
+		return "nama maksimal 100 karakter"
+	}
+	return ""
+}
+
+// ValidatePasswordChange memeriksa pasangan password lama dan baru
+func ValidatePasswordChange(oldPassword, newPassword string) string {
+	if oldPassword == "" {
+		return "password lama wajib diisi"
+	}
+	if msg := ValidatePassword(newPassword); msg != "" {
+		return msg
+	}
+	if oldPassword == newPassword {
+		return "password baru tidak boleh sama dengan password lama"
+	}
+	return ""
+}

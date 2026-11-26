@@ -14,6 +14,7 @@ Sistem Backend Manajemen Event dan E-Ticketing Kampus berbasis **Clean Architect
 ## Struktur Clean Architecture (Modul 4 & Modul 12)
 Aplikasi mematuhi aturan Clean Architecture baku tanpa folder `controller/` atau `handler/` (role controller menyatu pada method service di `*_service.go`, aturan bisnis murni terisolasi di `*_rules.go`):
 
+
 ```text
 tiket-in-backend/
 ├── main.go                       # Entry point aplikasi & graceful shutdown
@@ -61,7 +62,10 @@ tiket-in-backend/
 | 14 | POST | `/api/v1/registrations` | Peserta | Booking tiket (pessimistic row locking) |
 | 15 | GET | `/api/v1/registrations/me` | Peserta | Riwayat tiket milik peserta yang login |
 | 16 | POST | `/api/v1/attendances/check-in` | Panitia / Admin | Verifikasi kehadiran & check-in peserta |
-
+| 17 | GET | `/api/v1/users` | Admin | Daftar user (search, filter `role`, pagination) |
+| 18 | PUT | `/api/v1/users/:id/role` | Admin | Ubah role user (peserta/panitia/admin) |
+| 19 | PUT | `/api/v1/auth/me` | Semua role | Update nama dan email sendiri |
+| 20 | PUT | `/api/v1/auth/me/password` | Semua role | Ganti password |
 ---
 
 ## Cara Menjalankan Proyek
@@ -84,7 +88,7 @@ Jalankan skrip SQL berurutan di folder `migrations/` pada database PostgreSQL:
 - `004_create_ticket_types.sql`
 - `005_create_registrations.sql`
 - `006_create_attendance.sql`
-
+- `009_user_management.sql`
 ### 4. Menjalankan Server Backend
 ```bash
 go run main.go
