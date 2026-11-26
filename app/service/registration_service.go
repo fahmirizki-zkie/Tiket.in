@@ -199,9 +199,83 @@ func (s *RegistrationService) mapError(op string, err error) error {
 		return helper.Conflict(ErrAlreadyRegistered.Error())
 	case errors.Is(err, ErrEventNotOpen), errors.Is(err, ErrEventEnded):
 		return helper.BadRequest(err.Error())
+	case errors.Is(err, ErrNotRegistrationOwner):
+		return helper.Forbidden(err.Error())
+	case errors.Is(err, ErrAlreadyCheckedIn), errors.Is(err, ErrRegistrationCancelled):
+		return helper.Conflict(err.Error())
+	case errors.Is(err, ErrEventStarted):
+		return helper.BadRequest(err.Error())
 	}
 
 	s.logger.Error(op+": gagal", slog.String("error", err.Error()))
 	return helper.Internal(err)
+}
+
+// Cancel membatalkan tiket milik peserta dan mengembalikan kuota.
+// Registrasi dikunci lebih dulu, lalu counter sold dikurangi dalam transaksi yang sama.
+func (s *RegistrationService) Cancel(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(int64)
+	if !ok || userID <= 0 {
+		return helper.Unauthorized("sesi pengguna tidak valid")
+	}
+
+	id, ok := helper.ParamID(c)
+	if !ok {
+		return helper.BadRequest("id pendaftaran tidak valid")
+	}
+
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	var result model.Registration
+
+	err := s.txManager.WithTx(ctx, func(tx pgx.Tx) error {
+		// 1. Kunci registrasi
+		reg, err := s.registrationRepo.FindByIDForUpdate(ctx, tx, int64(id))
+		if err != nil {
+			return err
+		}
+		if reg == nil {
+			return helper.NotFound("pendaftaran tidak ditemukan")
+		}
+
+		// 2. Hanya pemilik, dan statusnya masih registered
+		if err := ValidateRegistrationOwner(reg.UserID, userID); err != nil {
+			return err
+		}
+		if err := ValidateCancel(reg.Status); err != nil {
+			return err
+		}
+
+		// 3. Event belum dimulai
+		event, err := s.eventRepo.FindByID(ctx, reg.EventID)
+		if err != nil {
+			return err
+		}
+		if event == nil {
+			return helper.NotFound("event tidak ditemukan")
+		}
+		if err := ValidateCancelWindow(event.StartAt, time.Now()); err != nil {
+			return err
+		}
+
+		// 4. Ubah status dan kembalikan kuota
+		if err := s.registrationRepo.UpdateStatus(ctx, tx, reg.ID, "cancelled"); err != nil {
+			return err
+		}
+		if err := s.ticketTypeRepo.DecrementSold(ctx, tx, reg.TicketTypeID, 1); err != nil {
+			return err
+		}
+
+		reg.Status = "cancelled"
+		reg.EventTitle = event.Title
+		result = *reg
+		return nil
+	})
+	if err != nil {
+		return s.mapError("registration cancel", err)
+	}
+
+	return helper.Success(c, fiber.StatusOK, "pendaftaran tiket berhasil dibatalkan", result)
 }
 
