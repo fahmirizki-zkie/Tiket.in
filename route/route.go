@@ -70,6 +70,7 @@ func Register(app *fiber.App, pool *pgxpool.Pool, deps Dependencies) {
 	registrations := api.Group("/registrations")
 	registrations.Post("/", mw.RequireJSON, mw.AuthRequired(jwtMgr), registrationSvc.Create)
 	registrations.Get("/me", mw.AuthRequired(jwtMgr), registrationSvc.GetMine)
+	registrations.Put("/:id/cancel", mw.AuthRequired(jwtMgr), registrationSvc.Cancel)
 
 	attendances := api.Group("/attendances")
 	attendances.Post("/check-in", mw.RequireJSON, mw.AuthRequired(jwtMgr), mw.RequireRole("panitia", "admin"), attendanceSvc.CheckIn)
